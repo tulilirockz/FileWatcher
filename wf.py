@@ -1,21 +1,19 @@
 """Command line utility for running external programs on file changes."""
-from typing import Union, Mapping, Final
-import sys
-import subprocess
-import argparse
+from typing import Final
 from time import sleep
+import argparse
+import enum
 import os
 import logging
+import sys
+import subprocess
 
 
-def transform_verbosity(verbosity: Union[str, int]) -> int:
-    """Transform logging verbosity levels from strings to valid integers."""
-    LEVELS: Mapping[str, int] = {
-        'NOTSET': 0, 'DEBUG': 10,
-        'INFO': 20, 'WARNING': 30,
-        'ERROR': 40, 'CRITICAL': 50
-    }
-    return LEVELS.get(verbosity, 50) if (type(verbosity) is str) else int(verbosity)
+@enum.unique
+class Loglevels(enum.IntEnum):
+    """Logging levels."""
+
+    NOTSET, DEBUG, INFO, WARNING, ERROR, CRITICAL = range(6)
 
 
 def generate_argparser(prog: str) -> argparse.ArgumentParser:
@@ -52,17 +50,27 @@ def generate_argparser(prog: str) -> argparse.ArgumentParser:
 
 def main() -> int:
     """Set up everything and run the external commands."""
-    ARGUMENTS = generate_argparser('wf').parse_args()
+    ARGUMENTS: Final[argparse.Namespace] = generate_argparser('wf').parse_args()
+
+    if ARGUMENTS.verbosity.upper() not in Loglevels.__dict__:
+        ARGUMENTS.verbosity = "CRITICAL"
+
+    logging.basicConfig(
+        format="[%(levelname)s] %(message)s",
+        level=(Loglevels[ARGUMENTS.verbosity] * 10),
+        force=True,
+        stream=sys.stderr
+    )
+
+    if not ARGUMENTS.files:
+        logging.critical("No file specified for the program.")
+        return 1
 
     if not ARGUMENTS.shell:
-        print("No program specified through --shell argument. Exiting.", file=sys.stderr)
+        logging.critical("No program specified through --shell argument.")
         return 1
 
     PROGRAM_LIST: list[str] = ARGUMENTS.shell.split(" ")
-    VERBOSITY_LEVEL: Final[int] = transform_verbosity(ARGUMENTS.verbosity)
-    FORMAT: Final[str] = "[%(levelname)s] %(message)s" if (VERBOSITY_LEVEL < logging.INFO) else "%(message)s"
-    logging.basicConfig(format=FORMAT, level=VERBOSITY_LEVEL, force=True)
-    logging.debug(f"Logging level set to {ARGUMENTS.verbosity:}: {VERBOSITY_LEVEL}")
 
     file_mtime = {x: os.path.getmtime(x) for x in ARGUMENTS.files}
 
@@ -72,13 +80,14 @@ def main() -> int:
             sleep(ARGUMENTS.time)
             for FILE in ARGUMENTS.files:
                 if (CURRENT_MTIME := os.path.getmtime(FILE)) == file_mtime[FILE]:
-                    logging.info(f"[{FILE}] No file changes since last check")
+                    logging.debug(f"[{FILE}] No file changes since last check")
                     continue
                 logging.info(f"[{FILE}] File change detected. Running {PROGRAM_LIST}")
                 subprocess.run(PROGRAM_LIST)
                 file_mtime[FILE] = CURRENT_MTIME
     except KeyboardInterrupt:
-        print("Program successfully exited through KeyboardInterrupt.", file=sys.stderr)
+        logging.critical("Program successfully exited through KeyboardInterrupt")
+
     return 0
 
 
