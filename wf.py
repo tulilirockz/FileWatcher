@@ -72,9 +72,9 @@ def main() -> int:
             sleep(ARGUMENTS.time)
             for FILE in ARGUMENTS.files:
                 if (CURRENT_MTIME := os.path.getmtime(FILE)) == file_mtime[FILE]:
-                    logging.info("No file changes since last check")
+                    logging.info(f"[{FILE}] No file changes since last check")
                     continue
-                logging.info(f"File change detected. Running {PROGRAM_LIST}")
+                logging.info(f"[{FILE}] File change detected. Running {PROGRAM_LIST}")
                 subprocess.run(PROGRAM_LIST)
                 file_mtime[FILE] = CURRENT_MTIME
     except KeyboardInterrupt:
