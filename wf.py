@@ -52,16 +52,6 @@ def main() -> int:
     """Set up everything and run the external commands."""
     ARGUMENTS: Final[argparse.Namespace] = generate_argparser('wf').parse_args()
 
-    if ARGUMENTS.verbosity.upper() not in Loglevels.__dict__:
-        ARGUMENTS.verbosity = "CRITICAL"
-
-    logging.basicConfig(
-        format="[%(levelname)s] %(message)s",
-        level=(Loglevels[ARGUMENTS.verbosity] * 10),
-        force=True,
-        stream=sys.stderr
-    )
-
     if not ARGUMENTS.files:
         logging.critical("No file specified for the program.")
         return 1
@@ -70,7 +60,14 @@ def main() -> int:
         logging.critical("No program specified through --shell argument.")
         return 1
 
-    PROGRAM_LIST: list[str] = ARGUMENTS.shell.split(" ")
+    logging.basicConfig(
+        format="[%(levelname)s] %(message)s",
+        level=(Loglevels[ARGUMENTS.verbosity.upper()] * 10),
+        force=True,
+        stream=sys.stderr
+    )
+
+    PROGRAM_ARGUMENTS: Final[list[str]] = ARGUMENTS.shell.split(" ")
 
     file_mtime = {x: os.path.getmtime(x) for x in ARGUMENTS.files}
 
@@ -82,8 +79,8 @@ def main() -> int:
                 if (CURRENT_MTIME := os.path.getmtime(FILE)) == file_mtime[FILE]:
                     logging.debug(f"[{FILE}] No file changes since last check")
                     continue
-                logging.info(f"[{FILE}] File change detected. Running {PROGRAM_LIST}")
-                subprocess.run(PROGRAM_LIST)
+                logging.info(f"[{FILE}] File change detected. Running {PROGRAM_ARGUMENTS}")
+                subprocess.run(PROGRAM_ARGUMENTS)
                 file_mtime[FILE] = CURRENT_MTIME
     except KeyboardInterrupt:
         logging.critical("Program successfully exited through KeyboardInterrupt")
