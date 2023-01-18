@@ -11,11 +11,9 @@ case for this eventually.
 
 # Usage
 ```sh
-TIMEHERE=10
 SHELL_SCRIPT_STRING="echo hi!!! it worked"
-VERBOSITY_LEVEL='INFO'
 
-wf -t $TIMEHERE -s $SHELL_SCRIPT_STRING -v $VERBOSITY_LEVEL
+wf -s "$SHELL_SCRIPT_STRING" FILE FILE2 FILE3 FILE4 # ...
 ```
 
 # Installation
